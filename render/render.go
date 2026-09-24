@@ -214,7 +214,7 @@ type pendingFile struct {
 	mode    os.FileMode
 }
 
-var foreignTemplateExpression = regexp.MustCompile(`(?s)(\$\{\{.*?\}\}|\{\{[<%].*?[>%]\}\})`)
+var foreignTemplateExpression = regexp.MustCompile(`(?s)(\$\{\{.*?\}\}|\{\{[<%].*?\}\})`)
 
 func renderContent(path string, content []byte, data map[string]string) ([]byte, error) {
 	if !bytes.Contains(content, []byte("{{")) {
