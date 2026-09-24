@@ -473,6 +473,252 @@ stew replace Acme acme --ignore-case
 
 Replacement skips binary files and common dependency/VCS directories.
 
+## Complete template workflow
+
+This walkthrough creates a reusable Go service template with variables,
+ignored files, task dependencies, platform-specific behavior, and a generated
+project workflow. The same pattern works for React, Node, Rust, and other
+project types by changing the files and commands.
+
+### 1. Create the template files
+
+Create a directory and add a manifest:
+
+```bash
+mkdir -p ~/templates/go-service/{cmd/service,internal}
+cd ~/templates/go-service
+```
+
+Create `.stew.yaml`:
+
+```yaml
+description: Go HTTP service starter
+tags: [go, backend, service]
+
+variables:
+  - name: project_name
+    description: Display name used in documentation
+    required: true
+  - name: module
+    description: Go module path
+    required: true
+  - name: author
+    description: Owner shown in generated documentation
+    default: Example Team
+
+tasks:
+  setup:
+    description: Download Go dependencies
+    command: go
+    args: [mod, download]
+    detect: [go.mod]
+    timeout: 5m
+  fmt:
+    description: Format Go source files
+    command: go
+    args: [fmt, ./...]
+    aliases: [format]
+    detect: [go.mod]
+  test:
+    description: Run the test suite
+    command: go
+    args: [test, ./...]
+    detect: [go.mod]
+    env:
+      CGO_ENABLED: "0"
+    timeout: 5m
+  check:
+    description: Format and test the service
+    depends_on: [fmt, test]
+    command: go
+    args: [vet, ./...]
+    detect: [go.mod]
+
+  # On Windows, use go.exe for the same task.
+  # Other platforms use the command and args above.
+  platform-check:
+    description: Run the platform-specific checker
+    command: go
+    args: [vet, ./...]
+    detect: [go.mod]
+    platforms:
+      windows:
+        command: go.exe
+        args: [vet, ./...]
+```
+
+Add a Go module whose path is rendered from the variables:
+
+```go
+// go.mod
+module {{ .module }}
+
+go 1.22
+```
+
+Add a source file and documentation:
+
+```go
+// cmd/service/main.go
+package main
+
+import "net/http"
+
+func main() {
+	_ = http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{{ .project_name }} is running\n"))
+	}))
+}
+```
+
+````markdown
+# {{ .project_name }}
+
+Owned by {{ .author }}.
+
+Module: `{{ .module }}`
+
+## Development
+
+```bash
+stew run setup --yes
+stew run fmt --yes
+stew run check --yes
+```
+````
+
+Keep machine-specific and generated files out of the template with
+`.stewignore`:
+
+```text
+.env
+.env.*
+bin/
+coverage/
+tmp/
+```
+
+Stew also ignores common dependency and VCS directories such as `.git`,
+`node_modules`, and `vendor` automatically.
+
+### 2. Save and validate the template
+
+Register the directory in the local catalog and inspect what Stew sees:
+
+```bash
+stew save go-service --path ~/templates/go-service \
+  --description "Go HTTP service starter"
+stew list --tag go
+stew view go-service --depth 3
+stew validate go-service
+```
+
+`view` shows the saved metadata and project tree. `validate` checks the
+manifest and attempts to render template files using the declared variables.
+Fix validation errors before sharing or creating from the template.
+
+### 3. Preview and create a project
+
+Use a values file when several values belong together:
+
+```yaml
+# billing-service.yaml
+project_name: Billing Service
+module: example.com/acme/billing
+author: Acme Platform Team
+```
+
+Preview the planned files without writing anything:
+
+```bash
+stew create go-service ./billing-service \
+  --values ./billing-service.yaml \
+  --dry-run
+```
+
+Create the project after reviewing the preview:
+
+```bash
+stew create go-service ./billing-service \
+  --values ./billing-service.yaml \
+  --non-interactive
+cd billing-service
+```
+
+Values are resolved in this order: environment variables, manifest defaults,
+the `--values` YAML file, `--var` flags, and finally interactive prompts.
+Therefore, a one-off override can be supplied without editing the values file:
+
+```bash
+stew create go-service ./billing-service \
+  --values ./billing-service.yaml \
+  --var author="Release Engineering"
+```
+
+Use `--json` when another script needs to consume the planned or completed
+file changes. Existing files are protected unless `--force` is supplied.
+
+### 4. Diagnose and run the generated workflow
+
+Generated projects retain the merged `.stew.yaml`, so the workflow travels
+with the project:
+
+```bash
+stew doctor
+stew tasks
+stew run setup --yes
+stew run fmt --yes
+stew run check --dry-run
+stew run check --yes
+```
+
+`check` runs its dependencies once in dependency order before running `go
+vet`. `detect: [go.mod]` makes Go-specific tasks unavailable in projects that
+do not contain a Go module. `doctor --json` is useful for CI diagnostics:
+
+```bash
+stew doctor --json > doctor-report.json
+```
+
+### 5. Share, import, and maintain the template
+
+For a portable file, export the saved template and import it elsewhere:
+
+```bash
+stew export go-service ./go-service.tar.gz
+stew import ./go-service.tar.gz --name go-service-copy
+stew create go-service-copy ./another-service \
+  --var project_name="Another Service" \
+  --var module=example.com/acme/another
+```
+
+For a Git-backed template, install it directly and keep it updated:
+
+```bash
+stew install https://github.com/example/templates.git go-service --ref main
+stew outdated
+stew diff go-service
+stew update go-service --check
+stew update go-service
+stew verify go-service
+```
+
+When starting from a full existing project, import it with a curation profile
+instead of manually copying dependency folders and secrets:
+
+```bash
+stew import https://github.com/example/full-go-service \
+  --name curated-go-service --profile go --dry-run
+stew import https://github.com/example/full-go-service \
+  --name curated-go-service --profile go \
+  --exclude docs/generated
+```
+
+The imported template is stored in Stew's managed cache. `stew remove` removes
+both its catalog entry and managed files; use `stew remove --keep-files` when
+you only want to unregister it.
+
 ## Manifest reference
 
 Templates may contain `.stew.yaml` at their root. It is copied into generated

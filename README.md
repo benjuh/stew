@@ -53,6 +53,40 @@ stew completion fish > ~/.config/fish/completions/stew.fish
 - `stew upgrade`: upgrade Stew to the latest or a specific version
 - `stew completion`: generate Bash, Zsh, Fish, or PowerShell completions
 
+## Quick start
+
+Save a directory you already use as a starting point, then create a fresh
+project from it:
+
+```bash
+stew save go-service --path ~/templates/go-service \
+  --description "Go service starter"
+stew list
+stew view go-service --depth 2
+stew create go-service ./billing-service \
+  --var project_name=billing-service \
+  --var module=example.com/billing-service
+```
+
+For a template downloaded from elsewhere, use `install` for a source you trust
+or `import` when you want Stew to curate a complete Git project first:
+
+```bash
+stew install https://github.com/example/templates.git go-service --ref main
+stew import https://github.com/example/full-service \
+  --name clean-service --profile go --dry-run
+```
+
+After creating a project, move into it and use its tasks:
+
+```bash
+cd billing-service
+stew doctor
+stew tasks
+stew run fmt --yes
+stew run check --yes
+```
+
 By default, `stew create` will not overwrite existing files. Use `--force` only
 when overwriting files in the destination is intended. Missing destination
 directories are created automatically.
@@ -79,6 +113,12 @@ ignored automatically.
 Templates may also include an optional `.stew.yaml` manifest containing a
 description, tags, and variable documentation. Search templates with
 `stew list --search react` or filter them with `stew list --tag frontend`.
+
+The manifest is also where a template can describe its project workflow. A
+single `check` task can depend on formatting and tests, so a generated project
+has one memorable command instead of a collection of project-specific commands.
+See the [complete template workflow](DOC.md#complete-template-workflow) for a
+copyable example.
 
 Templates can extend another saved template with `extends: base-template`.
 Child files override parent files, while variables, tasks, and tags are
@@ -174,6 +214,9 @@ stew create react-app my-app --values project.yaml
 stew create react-app my-app --non-interactive
 stew validate react-app
 ```
+
+Use `--dry-run` before creating a project when the template is unfamiliar, and
+use `--non-interactive` in scripts or CI so missing required values fail fast.
 
 For more information on usage, checkout the [DOC.md](https://github.com/benjuh/stew/blob/main/DOC.md) file.
 
