@@ -132,3 +132,14 @@ func TestGeneratePreservesForeignTemplateExpressions(t *testing.T) {
 		t.Fatalf("workflow = %q, want %q", got, want)
 	}
 }
+
+func TestHasForeignTemplateSyntax(t *testing.T) {
+	for _, content := range []string{"{{< shortcode >}}", "{{-< shortcode >}}", "{{% block %}}", "${{ matrix.os }}"} {
+		if !hasForeignTemplateSyntax(content) {
+			t.Errorf("hasForeignTemplateSyntax(%q) = false", content)
+		}
+	}
+	if hasForeignTemplateSyntax("{{ .ProjectName }}") {
+		t.Fatal("Stew syntax was detected as foreign syntax")
+	}
+}

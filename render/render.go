@@ -223,6 +223,9 @@ func renderContent(path string, content []byte, data map[string]string) ([]byte,
 	protected, expressions := protectForeignExpressions(string(content))
 	t, err := template.New(filepath.Base(path)).Option("missingkey=error").Parse(protected)
 	if err != nil {
+		if hasForeignTemplateSyntax(string(content)) {
+			return content, nil
+		}
 		return nil, fmt.Errorf("parse template %q: %w", path, err)
 	}
 	var output bytes.Buffer
@@ -230,6 +233,26 @@ func renderContent(path string, content []byte, data map[string]string) ([]byte,
 		return nil, fmt.Errorf("render template %q: %w", path, err)
 	}
 	return []byte(restoreForeignExpressions(output.String(), expressions)), nil
+}
+
+func hasForeignTemplateSyntax(content string) bool {
+	for offset := 0; offset < len(content); {
+		index := strings.Index(content[offset:], "{{")
+		if index < 0 {
+			return false
+		}
+		index += offset
+		if index > 0 && content[index-1] == '$' {
+			return true
+		}
+		index += 2
+		rest := strings.TrimLeft(content[index:], " \t\r\n-+")
+		if strings.HasPrefix(rest, "<") || strings.HasPrefix(rest, "%") || strings.HasPrefix(rest, "$") {
+			return true
+		}
+		offset = index
+	}
+	return false
 }
 
 func protectForeignExpressions(content string) (string, map[string]string) {
