@@ -112,3 +112,23 @@ func TestValidateUsesManifestVariableNames(t *testing.T) {
 		t.Fatal("expected undeclared variable validation error")
 	}
 }
+
+func TestGeneratePreservesForeignTemplateExpressions(t *testing.T) {
+	src := t.TempDir()
+	dst := filepath.Join(t.TempDir(), "project")
+	content := "name: app\nrun: ${{ matrix.node-version }}\nowner: {{ .Owner }}\n"
+	if err := os.WriteFile(filepath.Join(src, "workflow.yml"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Generate(src, dst, Options{Variables: map[string]string{"Owner": "benjuh"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dst, "workflow.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "name: app\nrun: ${{ matrix.node-version }}\nowner: benjuh\n"
+	if string(got) != want {
+		t.Fatalf("workflow = %q, want %q", got, want)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -213,11 +214,14 @@ type pendingFile struct {
 	mode    os.FileMode
 }
 
+var foreignTemplateExpression = regexp.MustCompile(`(?s)\$\{\{.*?\}\}`)
+
 func renderContent(path string, content []byte, data map[string]string) ([]byte, error) {
 	if !bytes.Contains(content, []byte("{{")) {
 		return content, nil
 	}
-	t, err := template.New(filepath.Base(path)).Option("missingkey=error").Parse(string(content))
+	protected, expressions := protectForeignExpressions(string(content))
+	t, err := template.New(filepath.Base(path)).Option("missingkey=error").Parse(protected)
 	if err != nil {
 		return nil, fmt.Errorf("parse template %q: %w", path, err)
 	}
@@ -225,7 +229,26 @@ func renderContent(path string, content []byte, data map[string]string) ([]byte,
 	if err := t.Execute(&output, data); err != nil {
 		return nil, fmt.Errorf("render template %q: %w", path, err)
 	}
-	return output.Bytes(), nil
+	return []byte(restoreForeignExpressions(output.String(), expressions)), nil
+}
+
+func protectForeignExpressions(content string) (string, map[string]string) {
+	expressions := make(map[string]string)
+	index := 0
+	protected := foreignTemplateExpression.ReplaceAllStringFunc(content, func(expression string) string {
+		marker := fmt.Sprintf("__STEW_FOREIGN_TEMPLATE_%d__", index)
+		index++
+		expressions[marker] = expression
+		return marker
+	})
+	return protected, expressions
+}
+
+func restoreForeignExpressions(content string, expressions map[string]string) string {
+	for marker, expression := range expressions {
+		content = strings.ReplaceAll(content, marker, expression)
+	}
+	return content
 }
 
 func renderPath(path string, data map[string]string) (string, error) {
