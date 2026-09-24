@@ -205,12 +205,15 @@ Examples:
 ```bash
 stew upgrade
 stew upgrade --check
-stew upgrade v1.4.0
+stew upgrade v1.6.0
 ```
 
-`upgrade` uses `go install` and therefore requires Go to be installed and
-available on `PATH`. Package-manager installations should be upgraded through
-their package manager instead.
+`upgrade` uses `go install` for Go-installed copies. Release binaries on macOS
+and Linux are downloaded from GitHub Releases and verified against the
+published checksums before replacement. Package-manager installations should
+be upgraded through their package manager instead. Windows users should
+download the new archive manually because a running Windows executable cannot
+replace itself safely.
 
 Prebuilt archives for macOS, Linux, and Windows are published on the GitHub
 releases page. Package-manager installations should be upgraded through their

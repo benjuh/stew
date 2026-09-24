@@ -15,12 +15,16 @@ Prebuilt binaries for macOS, Linux, and Windows are available on the
 archive for your operating system and architecture, then place `stew` on your
 `PATH`.
 
-Upgrade an existing Go-installed copy from inside the CLI:
+`stew upgrade` updates Go-installed copies with `go install` and verifies and
+replaces release-binary installations on macOS and Linux. Homebrew and other
+package-manager installations should be upgraded through their package manager.
+
+Upgrade an existing installation from inside the CLI:
 
 ```bash
 stew upgrade
 stew upgrade --check
-stew upgrade v1.5.1
+stew upgrade v1.6.0
 ```
 
 Generate shell completion scripts:
