@@ -15,6 +15,14 @@ stew upgrade --check
 stew upgrade v1.4.0
 ```
 
+Generate shell completion scripts:
+
+```bash
+stew completion zsh > ~/.zsh/completions/_stew
+stew completion bash > ~/.local/share/bash-completion/completions/stew
+stew completion fish > ~/.config/fish/completions/stew.fish
+```
+
 ## Usage
 - `stew save`: save an existing directory as a template (`add` remains an alias)
 - `stew edit`: edit the values of a saved stew 
@@ -30,6 +38,7 @@ stew upgrade v1.4.0
 - `stew tasks`: list tasks available in the current project
 - `stew run`: run a named project task
 - `stew upgrade`: upgrade Stew to the latest or a specific version
+- `stew completion`: generate Bash, Zsh, Fish, or PowerShell completions
 
 By default, `stew create` will not overwrite existing files. Use `--force` only
 when overwriting files in the destination is intended. Missing destination

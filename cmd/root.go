@@ -10,6 +10,7 @@ import (
 
 	"github.com/benjuh/stew/cmd/add"
 	"github.com/benjuh/stew/cmd/browse"
+	"github.com/benjuh/stew/cmd/completion"
 	"github.com/benjuh/stew/cmd/diff"
 	"github.com/benjuh/stew/cmd/doctor"
 	"github.com/benjuh/stew/cmd/edit"
@@ -78,6 +79,7 @@ func setDefaults() {
 func addSubCommands() {
 	rootCmd.AddCommand(add.SaveCmd)
 	rootCmd.AddCommand(browse.BrowseCmd)
+	rootCmd.AddCommand(completion.CompletionCmd)
 	rootCmd.AddCommand(info.InfoCmd)
 	rootCmd.AddCommand(edit.EditCmd)
 	rootCmd.AddCommand(list.ListCmd)

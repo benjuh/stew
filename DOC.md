@@ -212,6 +212,30 @@ stew upgrade v1.4.0
 available on `PATH`. Package-manager installations should be upgraded through
 their package manager instead.
 
+## completion
+```
+Generate shell completion scripts
+
+Usage:
+  stew completion <shell>
+
+Supported shells:
+  bash, zsh, fish, powershell
+```
+
+Examples:
+
+```bash
+mkdir -p ~/.zsh/completions
+stew completion zsh > ~/.zsh/completions/_stew
+
+mkdir -p ~/.config/fish/completions
+stew completion fish > ~/.config/fish/completions/stew.fish
+```
+
+Restart the shell or reload its completion configuration after installing a
+generated script.
+
 ## diff
 ```
 Show changes available for a Git-backed template
