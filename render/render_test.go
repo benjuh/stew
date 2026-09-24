@@ -116,7 +116,7 @@ func TestValidateUsesManifestVariableNames(t *testing.T) {
 func TestGeneratePreservesForeignTemplateExpressions(t *testing.T) {
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "project")
-	content := "name: app\nrun: ${{ matrix.node-version }}\nowner: {{ .Owner }}\n"
+	content := "name: app\nrun: ${{ matrix.node-version }}\nshortcode: {{< render-image >}}\nowner: {{ .Owner }}\n"
 	if err := os.WriteFile(filepath.Join(src, "workflow.yml"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestGeneratePreservesForeignTemplateExpressions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "name: app\nrun: ${{ matrix.node-version }}\nowner: benjuh\n"
+	want := "name: app\nrun: ${{ matrix.node-version }}\nshortcode: {{< render-image >}}\nowner: benjuh\n"
 	if string(got) != want {
 		t.Fatalf("workflow = %q, want %q", got, want)
 	}
