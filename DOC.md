@@ -212,6 +212,10 @@ stew upgrade v1.4.0
 available on `PATH`. Package-manager installations should be upgraded through
 their package manager instead.
 
+Prebuilt archives for macOS, Linux, and Windows are published on the GitHub
+releases page. Package-manager installations should be upgraded through their
+package manager instead of replacing the managed binary manually.
+
 ## completion
 ```
 Generate shell completion scripts

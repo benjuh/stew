@@ -3,16 +3,24 @@
 Introducing `stew` 🍲🎉. A CLI for creating, storing, and using templates to reduce boilerplate.
 
 ## Installation
+
+Install with Go:
+
 ```
 go install github.com/benjuh/stew@latest
 ```
+
+Prebuilt binaries for macOS, Linux, and Windows are available on the
+[GitHub releases page](https://github.com/benjuh/stew/releases). Download the
+archive for your operating system and architecture, then place `stew` on your
+`PATH`.
 
 Upgrade an existing Go-installed copy from inside the CLI:
 
 ```bash
 stew upgrade
 stew upgrade --check
-stew upgrade v1.4.0
+stew upgrade v1.5.1
 ```
 
 Generate shell completion scripts:
