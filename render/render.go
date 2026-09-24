@@ -223,7 +223,7 @@ func renderContent(path string, content []byte, data map[string]string) ([]byte,
 	protected, expressions := protectForeignExpressions(string(content))
 	t, err := template.New(filepath.Base(path)).Option("missingkey=error").Parse(protected)
 	if err != nil {
-		if hasForeignTemplateSyntax(string(content)) {
+		if hasForeignTemplateSyntax(string(content)) || strings.Contains(err.Error(), `unexpected "<" in define clause`) {
 			return content, nil
 		}
 		return nil, fmt.Errorf("parse template %q: %w", path, err)
