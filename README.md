@@ -101,15 +101,20 @@ Curated starter templates can be discovered from a catalog index:
 
 ```bash
 stew search react --catalog-url https://benjuh.com/stew/catalog/index.json
+stew search react --refresh
 stew info react-neon-render --catalog-url https://benjuh.com/stew/catalog/index.json
 stew install react-neon-render --variant minimal \
-  --catalog-url https://benjuh.com/stew/catalog/index.json
+  --catalog-url https://benjuh.com/stew/catalog/index.json --refresh
 stew create react-neon-render --variant minimal
 ```
 
 Catalog entries describe neutral `minimal` and more complete `standard`
 variants. The catalog contains metadata and sources; template files remain in
 the separate template repository.
+
+Remote catalog results are cached briefly for offline use. Add `--refresh` to
+`search`, `browse`, `info`, or variant-based `install` when you need the latest
+catalog immediately. Empty catalogs are not cached.
 
 Installed templates are cached under `~/.config/stew/templates` by default.
 Archives exclude `.git` metadata, preserve file permissions, and reject unsafe

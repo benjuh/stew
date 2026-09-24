@@ -17,7 +17,8 @@ var InfoCmd = &cobra.Command{
 			return cmd.Help()
 		}
 		url, _ := cmd.Flags().GetString("catalog-url")
-		index, err := catalogsource.Load(url)
+		refresh, _ := cmd.Flags().GetBool("refresh")
+		index, err := catalogsource.LoadWithOptions(url, refresh)
 		if err != nil {
 			return err
 		}
@@ -47,4 +48,5 @@ var InfoCmd = &cobra.Command{
 func init() {
 	InfoCmd.Flags().String("catalog-url", "", "Catalog URL or local index file")
 	InfoCmd.Flags().Bool("json", false, "Output template details as JSON")
+	InfoCmd.Flags().Bool("refresh", false, "Fetch the catalog instead of using the fresh cache")
 }

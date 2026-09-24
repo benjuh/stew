@@ -49,16 +49,28 @@ func LoadRemote(source string) (Index, error) {
 
 // LoadCached loads a catalog and keeps a short-lived local fallback for offline use.
 func LoadCached(source, cacheDir string) (Index, error) {
+	return LoadCachedWithOptions(source, cacheDir, false)
+}
+
+// LoadCachedWithOptions loads a catalog, optionally bypassing the fresh cache.
+// Empty indexes are returned but never written to the cache.
+func LoadCachedWithOptions(source, cacheDir string, refresh bool) (Index, error) {
 	if !strings.HasPrefix(source, "http://") && !strings.HasPrefix(source, "https://") {
 		return LoadRemote(source)
 	}
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(source)))[:16]
 	cachePath := filepath.Join(cacheDir, ".catalog-"+hash+".yaml")
-	if info, err := os.Stat(cachePath); err == nil && time.Since(info.ModTime()) < 24*time.Hour {
-		return LoadRemote(cachePath)
+	if !refresh {
+		if info, err := os.Stat(cachePath); err == nil && time.Since(info.ModTime()) < 24*time.Hour {
+			return LoadRemote(cachePath)
+		}
 	}
 	index, err := LoadRemote(source)
 	if err == nil {
+		if len(index.Templates) == 0 {
+			_ = os.Remove(cachePath)
+			return index, nil
+		}
 		if mkdirErr := os.MkdirAll(cacheDir, 0755); mkdirErr == nil {
 			if data, marshalErr := yaml.Marshal(index); marshalErr == nil {
 				_ = os.WriteFile(cachePath, data, 0644)

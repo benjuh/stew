@@ -34,7 +34,8 @@ var InstallCmd = &cobra.Command{
 		variantPath := ""
 		if variant != "" {
 			catalogURL, _ := cmd.Flags().GetString("catalog-url")
-			index, err := catalogsource.Load(catalogURL)
+			refresh, _ := cmd.Flags().GetBool("refresh")
+			index, err := catalogsource.LoadWithOptions(catalogURL, refresh)
 			if err != nil {
 				return err
 			}
@@ -184,4 +185,5 @@ func init() {
 	InstallCmd.Flags().String("ref", "", "Git branch, tag, or commit to install")
 	InstallCmd.Flags().String("variant", "", "Catalog variant to install")
 	InstallCmd.Flags().String("catalog-url", "", "Catalog URL or local index file")
+	InstallCmd.Flags().Bool("refresh", false, "Fetch the catalog instead of using the fresh cache")
 }

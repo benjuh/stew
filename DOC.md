@@ -80,19 +80,26 @@ Usage:
 Flags:
       --catalog-url string   Catalog URL or local index file
       --json                 Output JSON
+      --refresh              Fetch the catalog instead of using the fresh cache
 ```
 
 Examples:
 
 ```bash
 stew search react --catalog-url https://benjuh.com/stew/catalog/index.json
+stew search react --refresh
 stew browse --catalog-url ./catalog.yaml
 stew info react-neon-render --json --catalog-url ./catalog.yaml
+stew install react-neon-render --variant minimal --refresh
 ```
 
 Catalog entries describe a template family, language, tags, and variants. The
 CLI does not embed starter files; entries point to sources in a separate
 template repository.
+
+Remote catalogs are cached briefly for offline use. Use `--refresh` with
+`search`, `browse`, `info`, or variant-based `install` to fetch the latest
+catalog immediately. Empty catalogs are never cached.
 
 ### create (new alias)
 ```

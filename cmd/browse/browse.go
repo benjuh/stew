@@ -14,4 +14,5 @@ var BrowseCmd = &cobra.Command{
 func init() {
 	BrowseCmd.Flags().String("catalog-url", "", "Catalog URL or local index file")
 	BrowseCmd.Flags().Bool("json", false, "Output templates as JSON")
+	BrowseCmd.Flags().Bool("refresh", false, "Fetch the catalog instead of using the fresh cache")
 }
