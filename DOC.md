@@ -189,6 +189,29 @@ Flags:
       --json          Output update status as JSON
 ```
 
+## upgrade
+```
+Upgrade Stew to the latest or a specific version
+
+Usage:
+  stew upgrade [version] [flags]
+
+Flags:
+      --check   Show the latest available version without upgrading
+```
+
+Examples:
+
+```bash
+stew upgrade
+stew upgrade --check
+stew upgrade v1.4.0
+```
+
+`upgrade` uses `go install` and therefore requires Go to be installed and
+available on `PATH`. Package-manager installations should be upgraded through
+their package manager instead.
+
 ## diff
 ```
 Show changes available for a Git-backed template

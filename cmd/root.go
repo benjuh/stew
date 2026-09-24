@@ -27,6 +27,7 @@ import (
 	"github.com/benjuh/stew/cmd/search"
 	cmdtasks "github.com/benjuh/stew/cmd/tasks"
 	"github.com/benjuh/stew/cmd/update"
+	"github.com/benjuh/stew/cmd/upgrade"
 	"github.com/benjuh/stew/cmd/validate"
 	"github.com/benjuh/stew/cmd/verify"
 	"github.com/benjuh/stew/util"
@@ -89,6 +90,7 @@ func addSubCommands() {
 	rootCmd.AddCommand(importcmd.ImportCmd)
 	rootCmd.AddCommand(install.InstallCmd)
 	rootCmd.AddCommand(update.UpdateCmd)
+	rootCmd.AddCommand(upgrade.UpgradeCmd)
 	rootCmd.AddCommand(outdated.OutdatedCmd)
 	rootCmd.AddCommand(diff.DiffCmd)
 	rootCmd.AddCommand(doctor.DoctorCmd)

@@ -7,6 +7,14 @@ Introducing `stew` 🍲🎉. A CLI for creating, storing, and using templates to
 go install github.com/benjuh/stew@latest
 ```
 
+Upgrade an existing Go-installed copy from inside the CLI:
+
+```bash
+stew upgrade
+stew upgrade --check
+stew upgrade v1.4.0
+```
+
 ## Usage
 - `stew save`: save an existing directory as a template (`add` remains an alias)
 - `stew edit`: edit the values of a saved stew 
@@ -21,6 +29,7 @@ go install github.com/benjuh/stew@latest
 - `stew doctor`: diagnose a project, manifest, and task configuration
 - `stew tasks`: list tasks available in the current project
 - `stew run`: run a named project task
+- `stew upgrade`: upgrade Stew to the latest or a specific version
 
 By default, `stew create` will not overwrite existing files. Use `--force` only
 when overwriting files in the destination is intended. Missing destination
