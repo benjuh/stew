@@ -131,6 +131,17 @@ func TestCLIWorkflow(t *testing.T) {
 	if imported.Err != nil {
 		t.Fatalf("import failed: %v\n%s", imported.Err, imported.Output)
 	}
+	importedCache := filepath.Join(root, "cache", "imported-starter")
+	if _, err := os.Stat(importedCache); err != nil {
+		t.Fatalf("imported cache: %v", err)
+	}
+	removed := runCLI(t, binary, root, config, "remove", "imported-starter")
+	if removed.Err != nil {
+		t.Fatalf("remove failed: %v\n%s", removed.Err, removed.Output)
+	}
+	if _, err := os.Stat(importedCache); !os.IsNotExist(err) {
+		t.Fatalf("imported cache still exists, stat error = %v", err)
+	}
 }
 
 type cliResult struct {

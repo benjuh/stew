@@ -45,7 +45,7 @@ stew completion fish > ~/.config/fish/completions/stew.fish
 - `stew info`: inspect a catalog template and its variants
 - `stew import`: turn an archive or Git project into a local template
 - `stew create`: create a project from a template (`new` remains an alias)
-- `stew remove`: remove a stew template
+- `stew remove`: remove a stew template and its managed cache files
 - `stew replace`: replace all instances of a string in a project
 - `stew doctor`: diagnose a project, manifest, and task configuration
 - `stew tasks`: list tasks available in the current project

@@ -285,6 +285,7 @@ Usage:
 
 Flags:
   -h, --help          help for remove
+      --keep-files    Keep template files on disk; only remove the catalog entry
 
 Global Flags:
   --config string   config file (default is $HOME/.config/stew/config.yaml)
@@ -459,8 +460,9 @@ stew edit go-service --path ~/templates/go-service
 stew remove go-service
 ```
 
-`remove` deletes only the catalog entry; it does not delete the template
-directory or cached files.
+`remove` deletes the catalog entry and removes templates stored under Stew's
+managed cache. It preserves template directories stored elsewhere. Use
+`--keep-files` to remove only the catalog entry.
 
 ### Replace a project name
 

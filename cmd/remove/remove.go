@@ -1,7 +1,13 @@
 package remove
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/benjuh/stew/types"
+	"github.com/benjuh/stew/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,9 +42,17 @@ var RemoveCmd = &cobra.Command{
 		}
 
 		name := args[0]
-		_, err = s.GetByName(name)
+		stew, err := s.GetByName(name)
 		if err != nil {
 			return err
+		}
+		keepFiles, _ := cmd.Flags().GetBool("keep-files")
+		if !keepFiles {
+			if path, ok := managedTemplatePath(viper.GetString("templatesPath"), stew.Path); ok {
+				if err := os.RemoveAll(path); err != nil {
+					return fmt.Errorf("remove template files: %w", err)
+				}
+			}
 		}
 
 		err = s.RemoveByName(name)
@@ -57,6 +71,20 @@ var RemoveCmd = &cobra.Command{
 func flags() {
 	RemoveCmd.Flags().IntP("id", "i", -1, "The id of the stew you want to remove")
 	RemoveCmd.Flags().StringP("name", "n", "", "The name of the stew you want to remove")
+	RemoveCmd.Flags().Bool("keep-files", false, "Keep template files on disk; only remove the catalog entry")
+}
+
+// managedTemplatePath returns target only when it is a child of the configured
+// template cache. This prevents remove from deleting a user's arbitrary saved
+// template directory or the cache root itself.
+func managedTemplatePath(root, target string) (string, bool) {
+	root = util.ResolvePath(root)
+	target = util.ResolvePath(target)
+	rel, err := filepath.Rel(root, target)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", false
+	}
+	return target, true
 }
 
 func init() {
