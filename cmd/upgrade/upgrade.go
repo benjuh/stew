@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -46,6 +47,7 @@ func install(cmd *cobra.Command, target string) error {
 
 	fmt.Fprintf(cmd.ErrOrStderr(), "Upgrading Stew to %s...\n", version)
 	command := exec.CommandContext(cmd.Context(), "go", "install", "-ldflags", "-X github.com/benjuh/stew/cmd.Version="+version, modulePath+"@"+version)
+	command.Env = directGoEnv()
 	command.Stdout = cmd.OutOrStdout()
 	command.Stderr = cmd.ErrOrStderr()
 	if err := command.Run(); err != nil {
@@ -70,6 +72,7 @@ func checkLatest(cmd *cobra.Command) error {
 
 func latestVersion(cmd *cobra.Command) (string, error) {
 	command := exec.CommandContext(cmd.Context(), "go", "list", "-m", "-f", "{{.Version}}", modulePath+"@latest")
+	command.Env = directGoEnv()
 	output, err := command.Output()
 	if err != nil {
 		return "", fmt.Errorf("could not check the latest version: %w", err)
@@ -79,6 +82,17 @@ func latestVersion(cmd *cobra.Command) (string, error) {
 		return "", fmt.Errorf("could not determine the latest version")
 	}
 	return version, nil
+}
+
+func directGoEnv() []string {
+	env := os.Environ()
+	for i, value := range env {
+		if strings.HasPrefix(value, "GOPROXY=") {
+			env[i] = "GOPROXY=direct"
+			return env
+		}
+	}
+	return append(env, "GOPROXY=direct")
 }
 
 func init() {
