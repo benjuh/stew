@@ -133,14 +133,31 @@ Usage:
 
 ## import
 ```
-Import a template archive into the local catalog
+Import an archive or curate a Git project into the local catalog
 
 Usage:
-  stew import <archive> [flags]
+  stew import <archive-or-git-url> [flags]
 
 Flags:
-      --name string  Name to register the imported template under
+      --description string  Description for an imported Git template
+      --dry-run             Show what would be imported without saving it
+      --exclude strings     Additional file or directory names to exclude
+      --name string         Name to register the imported template under
+      --profile string      Curation profile: auto, generic, react, node, or go
 ```
+
+Import a Git project as a curated Stew template:
+
+```bash
+stew import https://github.com/example/react-project \
+  --name react-starter --profile react
+stew import https://github.com/example/service --profile go --dry-run
+```
+
+Git imports clone into a temporary directory, remove generated files using a
+profile, create a minimal `.stew.yaml` when one is missing, and register the
+curated result locally. Existing manifests are preserved. Use `--exclude` for
+additional file or directory names.
 
 ## install
 ```

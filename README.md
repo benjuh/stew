@@ -43,6 +43,7 @@ stew completion fish > ~/.config/fish/completions/stew.fish
 - `stew search`: search a remote starter catalog
 - `stew browse`: browse a remote starter catalog
 - `stew info`: inspect a catalog template and its variants
+- `stew import`: turn an archive or Git project into a local template
 - `stew create`: create a project from a template (`new` remains an alias)
 - `stew remove`: remove a stew template
 - `stew replace`: replace all instances of a string in a project
