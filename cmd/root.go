@@ -1,27 +1,42 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/BenjuhminStewart/stew/cmd/add"
-	"github.com/BenjuhminStewart/stew/cmd/edit"
-	"github.com/BenjuhminStewart/stew/cmd/get"
-	"github.com/BenjuhminStewart/stew/cmd/list"
-	"github.com/BenjuhminStewart/stew/cmd/new"
-	"github.com/BenjuhminStewart/stew/cmd/remove"
-	"github.com/BenjuhminStewart/stew/cmd/replace"
-	"github.com/BenjuhminStewart/stew/util"
+	"github.com/benjuh/stew/cmd/add"
+	"github.com/benjuh/stew/cmd/browse"
+	"github.com/benjuh/stew/cmd/diff"
+	"github.com/benjuh/stew/cmd/doctor"
+	"github.com/benjuh/stew/cmd/edit"
+	"github.com/benjuh/stew/cmd/export"
+	"github.com/benjuh/stew/cmd/get"
+	importcmd "github.com/benjuh/stew/cmd/importcmd"
+	"github.com/benjuh/stew/cmd/info"
+	"github.com/benjuh/stew/cmd/install"
+	"github.com/benjuh/stew/cmd/list"
+	"github.com/benjuh/stew/cmd/new"
+	"github.com/benjuh/stew/cmd/outdated"
+	"github.com/benjuh/stew/cmd/remove"
+	"github.com/benjuh/stew/cmd/replace"
+	"github.com/benjuh/stew/cmd/run"
+	"github.com/benjuh/stew/cmd/search"
+	cmdtasks "github.com/benjuh/stew/cmd/tasks"
+	"github.com/benjuh/stew/cmd/update"
+	"github.com/benjuh/stew/cmd/validate"
+	"github.com/benjuh/stew/cmd/verify"
+	"github.com/benjuh/stew/util"
 )
 
 var (
 	cfgFile string
 
-	// Version is the version of the stew
-	Version string
+	// Version is set at build time with -ldflags and defaults to dev.
+	Version = "dev"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -54,20 +69,33 @@ func Execute() {
 func setDefaults() {
 	viper.SetDefault("stewsPath", util.GetHomeDir()+"/.stews.json")
 	viper.SetDefault("timeFormat", "2006-01-02 15:04:05")
-	viper.SetDefault("allowFileCreation", false)
+	viper.SetDefault("templatesPath", util.GetHomeDir()+"/.config/stew/templates")
+	viper.SetDefault("catalogURL", "https://benjuh.com/stew/catalog/index.json")
 
-	// Update the version
-	Version = "v1.2.3"
 }
 
 func addSubCommands() {
-	rootCmd.AddCommand(add.AddCmd)
+	rootCmd.AddCommand(add.SaveCmd)
+	rootCmd.AddCommand(browse.BrowseCmd)
+	rootCmd.AddCommand(info.InfoCmd)
 	rootCmd.AddCommand(edit.EditCmd)
 	rootCmd.AddCommand(list.ListCmd)
 	rootCmd.AddCommand(remove.RemoveCmd)
-	rootCmd.AddCommand(new.NewCmd)
-	rootCmd.AddCommand(get.GetCmd)
+	rootCmd.AddCommand(new.CreateCmd)
+	rootCmd.AddCommand(get.ViewCmd)
 	rootCmd.AddCommand(replace.ReplaceCmd)
+	rootCmd.AddCommand(validate.ValidateCmd)
+	rootCmd.AddCommand(export.ExportCmd)
+	rootCmd.AddCommand(importcmd.ImportCmd)
+	rootCmd.AddCommand(install.InstallCmd)
+	rootCmd.AddCommand(update.UpdateCmd)
+	rootCmd.AddCommand(outdated.OutdatedCmd)
+	rootCmd.AddCommand(diff.DiffCmd)
+	rootCmd.AddCommand(doctor.DoctorCmd)
+	rootCmd.AddCommand(verify.VerifyCmd)
+	rootCmd.AddCommand(run.RunCmd)
+	rootCmd.AddCommand(cmdtasks.TasksCmd)
+	rootCmd.AddCommand(search.SearchCmd)
 
 }
 
@@ -97,6 +125,7 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	setDefaults()
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -112,11 +141,15 @@ func initConfig() {
 		viper.SetConfigType("yaml")
 		viper.SetConfigName("config")
 
-		setDefaults()
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
-	viper.ReadInConfig()
+	if err := viper.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) {
+			cobra.CheckErr(err)
+		}
+	}
 }

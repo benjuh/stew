@@ -1,10 +1,11 @@
 package list
 
 import (
-	"fmt"
-	"os"
+	"encoding/json"
+	"strings"
 
-	"github.com/BenjuhminStewart/stew/types"
+	"github.com/benjuh/stew/manifest"
+	"github.com/benjuh/stew/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -12,19 +13,61 @@ import (
 // ListCmd represents the list command
 var ListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all created stews",
+	Short: "List or search saved templates",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		st := types.Stews{}
 		if err := st.Load(viper.GetString("stewsPath")); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
-		st.List()
+		search, _ := cmd.Flags().GetString("search")
+		tag, _ := cmd.Flags().GetString("tag")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+		if len(args) > 0 {
+			search = args[0]
+		}
+		filtered := make(types.Stews, 0, len(st))
+		entries := make([]listEntry, 0, len(st))
+		for _, stew := range st {
+			metadata, err := manifest.Load(stew.Path)
+			if err != nil {
+				return err
+			}
+			if search != "" && !strings.Contains(strings.ToLower(stew.Name+" "+stew.Description+" "+strings.Join(metadata.Tags, " ")), strings.ToLower(search)) {
+				continue
+			}
+			if tag != "" && !containsTag(metadata.Tags, tag) {
+				continue
+			}
+			filtered = append(filtered, stew)
+			entries = append(entries, listEntry{Stew: stew, Manifest: metadata})
+		}
+		if jsonOutput {
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(entries)
+		}
+		filtered.List()
+		return nil
 	},
 }
 
+type listEntry struct {
+	Stew     types.Stew        `json:"stew"`
+	Manifest manifest.Manifest `json:"manifest"`
+}
+
+func containsTag(tags []string, wanted string) bool {
+	for _, tag := range tags {
+		if strings.EqualFold(tag, wanted) {
+			return true
+		}
+	}
+	return false
+}
+
 func init() {
+	ListCmd.Flags().String("search", "", "Search template names, descriptions, and tags")
+	ListCmd.Flags().String("tag", "", "Only show templates with this tag")
+	ListCmd.Flags().Bool("json", false, "Output templates as JSON")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

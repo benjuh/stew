@@ -1,10 +1,13 @@
 package edit
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/BenjuhminStewart/stew/types"
+	"github.com/benjuh/stew/types"
+	"github.com/benjuh/stew/util"
 )
 
 // EditCmd represents the edit command
@@ -12,11 +15,10 @@ var EditCmd = &cobra.Command{
 	Use:   "edit <name_of_stew>",
 	Short: "Edit a stew's name, description, or path",
 	Long:  `stew edit <name_of_stew> [flags]`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if len(args) == 0 {
-			cmd.Help()
-			return
+			return cmd.Help()
 		}
 
 		selectedStew := args[0]
@@ -25,34 +27,46 @@ var EditCmd = &cobra.Command{
 		path, _ := cmd.Flags().GetString("path")
 
 		if name == "" && description == "" && path == "" {
-			cmd.Help()
-			return
+			return cmd.Help()
 		}
 
 		stews := types.Stews{}
 
 		err := stews.Load(viper.GetString("stewsPath"))
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		stew, err := stews.GetByName(selectedStew)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
+		}
+		if name != "" && name != selectedStew {
+			if _, err := stews.GetByName(name); err == nil {
+				return fmt.Errorf("stew name already exists: %s", name)
+			}
+		}
+		if path != "" {
+			resolvedPath, pathErr := util.GetPath(path)
+			if pathErr != nil {
+				return pathErr
+			}
+			for _, candidate := range stews {
+				if candidate.Name != selectedStew && candidate.Path == resolvedPath {
+					return fmt.Errorf("stew path already exists: %s", resolvedPath)
+				}
+			}
 		}
 
 		err = stew.Edit(name, description, path)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 		err = stews.Save(viper.GetString("stewsPath"))
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
+		return nil
 	},
 }
 

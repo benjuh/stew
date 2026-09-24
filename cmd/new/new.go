@@ -1,11 +1,17 @@
 package new
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/BenjuhminStewart/stew/types"
-	"github.com/BenjuhminStewart/stew/util"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/benjuh/stew/inherit"
+	"github.com/benjuh/stew/render"
+	"github.com/benjuh/stew/types"
+	"github.com/benjuh/stew/util"
 )
 
 const (
@@ -16,67 +22,110 @@ const (
 	reset     = "\033[0m"
 )
 
-// NewCmd represents the init command
-var NewCmd = &cobra.Command{
-	Use:   "new <name_of_stew>",
-	Short: "Create a new instance of a stew template to create a new project",
-	Long:  `stew new <name_of_stew> [flags]`,
-	Run: func(cmd *cobra.Command, args []string) {
+// CreateCmd creates a project from a saved template.
+var CreateCmd = &cobra.Command{
+	Use:     "create <name_of_stew> [destination]",
+	Aliases: []string{"new"},
+	Short:   "Create a project from a template",
+	Long:    `stew create <name_of_stew> [destination] [flags]`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		s := types.Stews{}
 		err := s.Load(viper.GetString("stewsPath"))
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 		if len(args) == 0 {
-			cmd.Help()
-			return
+			return cmd.Help()
 		}
 
 		name := args[0]
 		path, _ := cmd.Flags().GetString("path")
 		force, _ := cmd.Flags().GetBool("force")
+		variant, _ := cmd.Flags().GetString("variant")
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+		valuesPath, _ := cmd.Flags().GetString("values")
+		nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
+		variables, _ := cmd.Flags().GetStringArray("var")
+		if len(args) > 2 {
+			return fmt.Errorf("expected a template name and optional destination")
+		}
+		if len(args) == 2 {
+			if path != "" {
+				return fmt.Errorf("destination provided both as an argument and with --path")
+			}
+			path = args[1]
+		}
+		if variant != "" {
+			name += "-" + variant
+		}
 
 		// get Stew by name
 		stew, err := s.GetByName(name)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 
 		if !util.CheckIfDirExists(stew.Path) {
 			fmt.Printf("\n%v%v%v\n", red, stew.Path, reset)
 			fmt.Println("This stew location has been deleted")
 			fmt.Println("Either edit the path or remove the stew")
-			return
+			return fmt.Errorf("stew source directory does not exist: %s", stew.Path)
 		}
 
-		if path == "" {
-			path = util.GetCurrentDir()
-		} else {
-			path, err = util.GetPath(path)
+		path = util.ResolvePath(path)
 
-			if err != nil && !viper.GetBool("allowFileCreation") && !force {
-				fmt.Println(err)
-				fmt.Println("To overwrite this, run the command with the -f or --force flag")
-				fmt.Println("If you want to overwrite this by default, set allowFileCreation to true in your config file")
-				return
+		values := make(map[string]string, len(variables))
+		for _, value := range variables {
+			key, val, ok := strings.Cut(value, "=")
+			if !ok || strings.TrimSpace(key) == "" {
+				return fmt.Errorf("invalid variable %q; expected key=value", value)
 			}
+			values[strings.TrimSpace(key)] = val
 		}
-
-		err = util.CopyDir(stew.Path, path)
+		resolved, err := inherit.Resolve(viper.GetString("stewsPath"), name)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
-		fmt.Println("🎉 Project created successfully")
+		defer resolved.Cleanup()
+		metadata := resolved.Manifest
+		values, err = metadata.Resolve(values, valuesPath, cmd.InOrStdin(), cmd.ErrOrStderr(), nonInteractive)
+		if err != nil {
+			return err
+		}
+		changes, err := render.Generate(resolved.Root, path, render.Options{
+			DryRun:    dryRun,
+			Overwrite: force,
+			Variables: values,
+		})
+		if err != nil {
+			return err
+		}
+		if jsonOutput {
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(changes)
+		}
+		if dryRun {
+			fmt.Printf("Would change %d file(s)\n", len(changes))
+		} else {
+			fmt.Printf("🎉 Project created successfully (%d file(s))\n", len(changes))
+		}
+		return nil
 
 	},
 }
 
+// NewCmd is retained as a source-level compatibility alias.
+var NewCmd = CreateCmd
+
 func flags() {
-	NewCmd.Flags().StringP("path", "p", "", "The path to the stew (defaults to current directory)")
-	NewCmd.Flags().BoolP("force", "f", false, "Force the creation of the project")
+	CreateCmd.Flags().StringP("path", "p", "", "Destination directory (defaults to current directory)")
+	CreateCmd.Flags().BoolP("force", "f", false, "Force the creation of the project")
+	CreateCmd.Flags().String("variant", "", "Catalog variant previously installed for this template")
+	CreateCmd.Flags().StringArray("var", nil, "Template variable in key=value form (repeatable)")
+	CreateCmd.Flags().String("values", "", "YAML file containing template variables")
+	CreateCmd.Flags().Bool("non-interactive", false, "Fail instead of prompting for missing required variables")
+	CreateCmd.Flags().Bool("dry-run", false, "Show planned changes without writing files")
+	CreateCmd.Flags().Bool("json", false, "Output the planned or completed changes as JSON")
 }
 
 func init() {

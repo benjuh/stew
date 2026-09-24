@@ -1,9 +1,8 @@
 package util
 
 import (
-	"bufio"
+	"bytes"
 	"errors"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -37,47 +36,14 @@ func GetHomeDir() string {
 
 }
 
-// PrintTree prints the directory tree
+// PrintTree prints the directory tree.
 func PrintTree(path string) {
-	root := path
-	var sb strings.Builder
-	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.Name() == ".git" {
-			return filepath.SkipDir
-		}
-
-		distance := distanceBetweenPaths(path, root)
-		for j := 0; j < distance; j++ {
-			sb.WriteString("  ")
-		}
-
-		if info.IsDir() {
-
-			sb.WriteString(dirColor)
-			sb.WriteString(info.Name())
-			sb.WriteString(reset)
-			sb.WriteString("/\n")
-		} else {
-			sb.WriteString(fileColor)
-			sb.WriteString(info.Name())
-			sb.WriteString(reset)
-			sb.WriteString("\n")
-		}
-
-		return nil
-	})
-	fmt.Println(sb.String())
-}
-
-func distanceBetweenPaths(path1, path2 string) int {
-	arr1 := strings.Split(path1, "/")
-	arr2 := strings.Split(path2, "/")
-
-	return int(math.Abs(float64(len(arr1) - len(arr2))))
+	node, err := BuildTree(path, 0)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	PrintTreeNode(node)
 }
 
 // GetCurrentDir returns the current directory
@@ -95,39 +61,33 @@ func FormatTime(t time.Time) string {
 
 // GetPath returns the path to a file
 func GetPath(path string) (string, error) {
-	dirs := strings.Split(path, "/")
-	homeDir := GetCurrentDir()
-
-	// check if path is absolute
-	isPathAbsolute := filepath.IsAbs(path)
-
-	if isPathAbsolute {
-		return path, nil
-	}
-
-	path = homeDir
-	for _, val := range dirs {
-		path = filepath.Join(path, val)
-	}
+	path = ResolvePath(path)
 
 	if !CheckIfDirExists(path) {
 		err := fmt.Sprintf("\n%v%v%v does not exist", red, path, reset)
 		return path, errors.New(err)
 	}
-
 	return path, nil
+}
+
+// ResolvePath returns a cleaned absolute path without requiring it to exist.
+func ResolvePath(path string) string {
+	if path == "" {
+		path = GetCurrentDir()
+	}
+	if path == "~" || strings.HasPrefix(path, "~"+string(os.PathSeparator)) {
+		path = filepath.Join(GetHomeDir(), strings.TrimPrefix(path, "~"+string(os.PathSeparator)))
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(GetCurrentDir(), path)
+	}
+	return filepath.Clean(path)
 }
 
 // CheckIfDirExists checks if a directory exists
 func CheckIfDirExists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return false
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // getCWD returns the current working directory
@@ -176,12 +136,26 @@ func CopyFile(src, dst string) (err error) {
 	return
 }
 
-// CopyDir recursively copies a directory tree, attempting to preserve permissions.
-// Source directory must exist, destination directory must *not* exist.
+// CopyDir recursively copies a directory tree without overwriting files.
 // Symlinks are ignored and skipped.
 func CopyDir(src string, dst string) (err error) {
+	return copyDir(src, dst, false)
+}
+
+// CopyDirForce recursively copies a directory tree and overwrites destination files.
+func CopyDirForce(src string, dst string) error {
+	return copyDir(src, dst, true)
+}
+
+func copyDir(src string, dst string, overwrite bool) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
+	if src == dst {
+		return fmt.Errorf("source and destination are the same directory")
+	}
+	if rel, relErr := filepath.Rel(src, dst); relErr == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("destination cannot be inside source directory")
+	}
 
 	si, err := os.Stat(src)
 	if err != nil {
@@ -192,10 +166,12 @@ func CopyDir(src string, dst string) (err error) {
 		return fmt.Errorf("source is not a directory")
 	}
 
-	_, err = os.Stat(dst)
-	if err != nil && !os.IsNotExist(err) {
-		fmt.Println(err)
-		return
+	if info, statErr := os.Stat(dst); statErr == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("destination is not a directory: %s", dst)
+		}
+	} else if !os.IsNotExist(statErr) {
+		return statErr
 	}
 
 	err = os.MkdirAll(dst, si.Mode())
@@ -214,12 +190,18 @@ func CopyDir(src string, dst string) (err error) {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 
+		if entry.Type()&os.ModeSymlink != 0 {
+			continue
+		}
 		if entry.IsDir() {
-			err = CopyDir(srcPath, dstPath)
+			err = copyDir(srcPath, dstPath, overwrite)
 			if err != nil {
 				return
 			}
 		} else {
+			if _, statErr := os.Stat(dstPath); statErr == nil && !overwrite {
+				return fmt.Errorf("destination file already exists: %s", dstPath)
+			}
 			err = CopyFile(srcPath, dstPath)
 			if err != nil {
 				return
@@ -232,68 +214,102 @@ func CopyDir(src string, dst string) (err error) {
 
 // UpdateProjectName updates a project name in a file
 func UpdateProjectName(path string, oldString string, newString string, ignoreCase bool) (int, error) {
-	// file walker that goes through all files in the directory and replaces the replaceString with the projectName
+	if oldString == "" {
+		return 0, errors.New("old string cannot be empty")
+	}
 
 	var filesChanged []string
 	count := 0
-	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if info == nil {
 			return nil
 		}
-		file, err := os.OpenFile(path, os.O_RDWR, 0644)
-		if err != nil {
-			return err
+		if info.IsDir() {
+			if shouldSkipDirectory(info.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
 		}
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		read, err := os.ReadFile(path)
 		if err != nil {
-			panic(err)
-		}
-		for scanner.Scan() {
-			line := scanner.Text()
-			if ignoreCase {
-				if caseInsensitiveContains(line, oldString) {
-					regexString := fmt.Sprintf("(?i)%v", oldString)
-					re := regexp.MustCompile(regexString)
-					newContents := re.ReplaceAllString(string(read), newString)
-					err = os.WriteFile(path, []byte(newContents), 0644)
-					if err != nil {
-						return err
-					}
-					filesChanged = append(filesChanged, path)
-					count++
-				}
-			} else {
-				if strings.Contains(line, oldString) {
-					newContents := strings.Replace(string(read), oldString, newString, -1)
-					err = os.WriteFile(path, []byte(newContents), 0644)
-					if err != nil {
-						return err
-					}
-
-					filesChanged = append(filesChanged, path)
-					count++
-				}
-			}
-		}
-		err = file.Sync()
-		if err != nil {
 			return err
 		}
+		if bytes.IndexByte(read, 0) >= 0 {
+			return nil
+		}
+
+		contents := string(read)
+		var newContents string
+		if ignoreCase {
+			re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(oldString))
+			matches := re.FindAllStringIndex(contents, -1)
+			if len(matches) == 0 {
+				return nil
+			}
+			count += len(matches)
+			newContents = re.ReplaceAllStringFunc(contents, func(string) string { return newString })
+		} else {
+			matches := strings.Count(contents, oldString)
+			if matches == 0 {
+				return nil
+			}
+			count += matches
+			newContents = strings.ReplaceAll(contents, oldString, newString)
+		}
+
+		if err := atomicWrite(path, []byte(newContents), info.Mode().Perm()); err != nil {
+			return err
+		}
+		filesChanged = append(filesChanged, path)
 		return nil
 	})
+	if err != nil {
+		return count, err
+	}
 	if len(filesChanged) != 0 {
 		fmt.Printf("\nReplaced in:\n%v", filesReplacedString(filesChanged))
 	}
 	return count, nil
 }
 
-func caseInsensitiveContains(a, b string) bool {
-	return strings.Contains(strings.ToLower(a), strings.ToLower(b))
+func shouldSkipDirectory(name string) bool {
+	switch name {
+	case ".git", ".hg", ".svn", "node_modules", "vendor":
+		return true
+	default:
+		return false
+	}
+}
+
+func atomicWrite(path string, data []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".stew-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(mode); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 func filesReplacedString(filesChanged []string) string {

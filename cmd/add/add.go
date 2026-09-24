@@ -1,25 +1,23 @@
 package add
 
 import (
-	"fmt"
-
-	"github.com/BenjuhminStewart/stew/types"
-	"github.com/BenjuhminStewart/stew/util"
+	"github.com/benjuh/stew/types"
+	"github.com/benjuh/stew/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"os"
 )
 
-// AddCmd represents the create command
-var AddCmd = &cobra.Command{
-	Use:   "add <name_of_stew>",
-	Short: "Add a stew based off a defined directory",
-	Long:  `stew add <name_of_stew> [flags]`,
-	Run: func(cmd *cobra.Command, args []string) {
+// SaveCmd stores a directory as a named template.
+var SaveCmd = &cobra.Command{
+	Use:     "save <name_of_stew>",
+	Aliases: []string{"add"},
+	Short:   "Save a directory as a template",
+	Long:    `stew save <name_of_stew> [flags]`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			cmd.Help()
-			return
+			return cmd.Help()
 		}
 
 		name := args[0]
@@ -29,15 +27,13 @@ var AddCmd = &cobra.Command{
 		st := types.Stews{}
 
 		if err := st.Load(viper.GetString("stewsPath")); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 
 		// get absolute path
 		path, err := util.GetPath(path)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 
 		// if description is empty, set it to no description provided
@@ -45,14 +41,19 @@ var AddCmd = &cobra.Command{
 			description = "no description provided"
 		}
 
-		st.Add(name, description, path)
+		if err = st.Add(name, description, path); err != nil {
+			return err
+		}
 		err = st.Save(viper.GetString("stewsPath"))
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
+		return nil
 	},
 }
+
+// AddCmd is retained as a source-level compatibility alias.
+var AddCmd = SaveCmd
 
 func getCWD() string {
 	cwd, _ := os.Getwd()
@@ -60,8 +61,8 @@ func getCWD() string {
 }
 
 func addFlag() {
-	AddCmd.Flags().StringP("description", "d", "no description provided", "Description of the stew")
-	AddCmd.Flags().StringP("path", "p", getCWD(), "Path to the stew")
+	SaveCmd.Flags().StringP("description", "d", "no description provided", "Description of the template")
+	SaveCmd.Flags().StringP("path", "p", getCWD(), "Path to the template")
 
 }
 

@@ -1,7 +1,7 @@
 package remove
 
 import (
-	"github.com/BenjuhminStewart/stew/types"
+	"github.com/benjuh/stew/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -11,37 +11,46 @@ var RemoveCmd = &cobra.Command{
 	Use:   "remove <name_of_stew>",
 	Short: "Remove a stew",
 	Long:  `stew remove <name_of_stew> [flags]`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		s := types.Stews{}
 		err := s.Load(viper.GetString("stewsPath"))
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		if len(args) == 0 {
-			cmd.Help()
-			return
+			name, _ := cmd.Flags().GetString("name")
+			id, _ := cmd.Flags().GetInt("id")
+			if name == "" && id < 0 {
+				return cmd.Help()
+			}
+			if name != "" {
+				args = []string{name}
+			} else {
+				stew, getErr := s.Get(id)
+				if getErr != nil {
+					return getErr
+				}
+				args = []string{stew.Name}
+			}
 		}
 
 		name := args[0]
 		_, err = s.GetByName(name)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		err = s.RemoveByName(name)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		err = s.Save(viper.GetString("stewsPath"))
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
+		return nil
 	},
 }
 

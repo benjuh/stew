@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/BenjuhminStewart/stew/util"
 	"os"
+	"path/filepath"
+
+	"github.com/benjuh/stew/util"
 	"time"
 )
 
@@ -24,6 +26,12 @@ type Stew struct {
 	Description string
 	Path        string
 	CreatedAt   time.Time
+	Source      string
+	SourceType  string
+	Version     string
+	Checksum    string
+	Revision    string
+	UpdatedAt   time.Time
 }
 
 // Stews is a slice of Stew structs
@@ -63,16 +71,21 @@ func (st Stew) PrintRemoved() {
 }
 
 // Add adds a stew to the slice
-func (st *Stews) Add(name string, description string, path string) {
-	path, _ = util.GetPath(path)
+func (st *Stews) Add(name string, description string, path string) error {
+	if name == "" {
+		return errors.New("stew name cannot be empty")
+	}
+	var err error
+	path, err = util.GetPath(path)
+	if err != nil {
+		return err
+	}
 	if st.doesStewExist(path) {
-		fmt.Printf("\n`%v%s%v` already exists in your stews\n", red, path, reset)
-		return
+		return fmt.Errorf("stew path already exists: %s", path)
 	}
 
 	if st.doesStewExistWithName(name) {
-		fmt.Printf("\n`%v%s%v` already exists in your stews\n", red, name, reset)
-		return
+		return fmt.Errorf("stew name already exists: %s", name)
 	}
 
 	stew := Stew{
@@ -84,6 +97,7 @@ func (st *Stews) Add(name string, description string, path string) {
 	*st = append(*st, stew)
 
 	stew.PrintAdded()
+	return nil
 }
 
 // doesStewExist checks if a stew already exists in the slice
@@ -211,7 +225,7 @@ func (st *Stews) Load(path string) error {
 	}
 
 	if len(file) == 0 {
-		return err
+		return nil
 	}
 
 	err = json.Unmarshal(file, st)
@@ -230,10 +244,29 @@ func (st *Stews) Save(path string) error {
 		return err
 	}
 
-	err = os.WriteFile(path, file, 0644)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".stews-*.tmp")
 	if err != nil {
 		return err
 	}
-
-	return nil
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(0644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(file); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }

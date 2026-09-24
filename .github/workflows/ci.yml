@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check formatting
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Integration smoke test
+        run: make smoke
+      - name: Vet
+        run: make vet
+      - name: Build
+        run: make build

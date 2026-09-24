@@ -3,7 +3,7 @@ package replace
 import (
 	"fmt"
 
-	"github.com/BenjuhminStewart/stew/util"
+	"github.com/benjuh/stew/util"
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +20,10 @@ var ReplaceCmd = &cobra.Command{
 	Use:   "replace",
 	Short: "Replace a project name in a stew",
 	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		if len(args) < 2 {
-			cmd.Help()
-			return
+			return cmd.Help()
 		}
 		oldString := args[0]
 		newString := args[1]
@@ -34,8 +33,7 @@ var ReplaceCmd = &cobra.Command{
 
 		path, err := util.GetPath(path)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		if path == "" {
@@ -44,11 +42,11 @@ var ReplaceCmd = &cobra.Command{
 
 		count, err := util.UpdateProjectName(path, oldString, newString, ignoreCase)
 		if err != nil {
-			cmd.Println(err)
-			return
+			return err
 		}
 
 		fmt.Printf("\nReplaced %v%v%v instances of %v%v%v with %v%v%v\n", green, count, reset, red, oldString, reset, quoted, newString, reset)
+		return nil
 
 	},
 }
